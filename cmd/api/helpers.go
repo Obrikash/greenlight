@@ -1,16 +1,18 @@
 package main
 
 import (
-    "encoding/json"
-    "errors"
-    "net/http"
-    "strconv"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strconv"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 func (app *application) readIDParam(r *http.Request) (int64, error) {
-    param := r.PathValue("id")
+    params := httprouter.ParamsFromContext(r.Context())
 
-    id, err := strconv.ParseInt(param, 10, 64)
+    id, err := strconv.ParseInt(params.ByName("id"), 10, 64)
     if err != nil || id < 1{
         return 0, errors.New("invalid id parameter")
     }
