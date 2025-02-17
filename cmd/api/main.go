@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+    "github.com/obrikash/greenlight/internal/data"
 	_ "github.com/lib/pq"
 )
 
@@ -29,6 +30,7 @@ type config struct {
 type application struct {
 	config config
 	logger *log.Logger
+    models data.Models
 }
 
 func main() {
@@ -37,8 +39,6 @@ func main() {
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
-
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://greenlight:mirepass@192.168.0.105/greenlight?sslmode=disable", "PostgreSQL DSN")
 
     flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
     flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
@@ -59,6 +59,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		logger: logger,
+        models: data.NewModels(db),
 	}
 
 	srv := &http.Server{
