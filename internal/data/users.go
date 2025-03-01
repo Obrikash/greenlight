@@ -33,7 +33,7 @@ type User struct {
 }
 
 func (u *User) IsAnonymous() bool {
-    return u == AnonymousUser
+	return u == AnonymousUser
 }
 
 func (p *password) Set(plaintextPassword string) error {
@@ -124,68 +124,68 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 	var user User
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-    defer cancel()
+	defer cancel()
 
-    err := m.DB.QueryRowContext(ctx, query, email).Scan(
-        &user.ID,
-        &user.CreatedAt,
-        &user.Name,
-        &user.Email,
-        &user.Password.hash,
-        &user.Activated,
-        &user.Version,
-    )
+	err := m.DB.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
+		&user.Activated,
+		&user.Version,
+	)
 
-    if err != nil {
-        switch {
-            case errors.Is(err, sql.ErrNoRows):
-                return nil, ErrRecordNotFound
-            default:
-                return nil, err
-        }
-    }
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
 
-    return &user, nil
+	return &user, nil
 }
 
 func (m UserModel) Update(user *User) error {
-    query := `
+	query := `
     UPDATE users
     SET name = $1, email = $2, password_hash = $3, activated = $4, version = version + 1
     WHERE id = $5 AND version = $6
     RETURNING version
     `
 
-    args := []any{
-        user.Name,
-        user.Email,
-        user.Password.hash,
-        user.Activated,
-        user.ID,
-        user.Version,
-    }
+	args := []any{
+		user.Name,
+		user.Email,
+		user.Password.hash,
+		user.Activated,
+		user.ID,
+		user.Version,
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
-    if err != nil {
-        switch {
-        case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
-            return ErrDuplicateEmail
-        case errors.Is(err, sql.ErrNoRows):
-            return ErrEditConflict
-        default:
-            return err
-        }
-    }
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
+	if err != nil {
+		switch {
+		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+			return ErrDuplicateEmail
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error) {
-    tokenHash := sha256.Sum256([]byte(tokenPlaintext))
-    query := `
+	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
+	query := `
         SELECT users.id, users.created_at, users.name, users.email, users.password_hash, users.activated, users.version
         FROM users
         INNER JOIN tokens
@@ -194,30 +194,29 @@ func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error)
         AND tokens.scope = $2
         AND tokens.expiry > $3`
 
-    args := []any{tokenHash[:], tokenScope, time.Now()}
+	args := []any{tokenHash[:], tokenScope, time.Now()}
 
-    var user User
-    ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
-    defer cancel()
+	var user User
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-    err := m.DB.QueryRowContext(ctx, query, args...).Scan(
-        &user.ID,
-        &user.CreatedAt,
-        &user.Name,
-        &user.Email,
-        &user.Password.hash,
-        &user.Activated,
-        &user.Version,
-    )
-    if err != nil {
-        switch {
-            case errors.Is(err, sql.ErrNoRows):
-                return nil, ErrRecordNotFound
-            default:
-                return nil, err
-        }
-    }
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
+		&user.Activated,
+		&user.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
 
-    return &user, nil
+	return &user, nil
 }
-

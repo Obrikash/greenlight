@@ -180,27 +180,27 @@ func (app *application) updateUserPasswordHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-    err = app.models.Users.Update(user)
-    if err != nil {
-        switch {
-        case errors.Is(err, data.ErrEditConflict):
-            app.editConflictResponse(w, r)
-        default:
-            app.serverErrorResponse(w, r, err)
-        }
-        return
-    }
+	err = app.models.Users.Update(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
 
-    err = app.models.Tokens.DeleteAllForUser(data.ScopePasswordReset, user.ID)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-        return
-    }
+	err = app.models.Tokens.DeleteAllForUser(data.ScopePasswordReset, user.ID)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
 
-    env := envelope{"message": "your password was successfully reset"}
+	env := envelope{"message": "your password was successfully reset"}
 
-    err = app.writeJSON(w, http.StatusOK, env, nil)
-    if err != nil {
-        app.serverErrorResponse(w, r, err)
-    }
+	err = app.writeJSON(w, http.StatusOK, env, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }

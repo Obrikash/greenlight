@@ -20,53 +20,53 @@ func (app *application) serve() error {
 		WriteTimeout: 30 * time.Second,
 	}
 
-    shutdownError := make(chan error)
+	shutdownError := make(chan error)
 
-    go func() {
-        quit := make(chan os.Signal, 1)
+	go func() {
+		quit := make(chan os.Signal, 1)
 
-        signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-        s := <-quit
+		s := <-quit
 
-        app.logger.PrintInfo("shutting down the server", map[string]string {
-            "signal": s.String(),
-        })
+		app.logger.PrintInfo("shutting down the server", map[string]string{
+			"signal": s.String(),
+		})
 
-        ctx, cancel := context.WithTimeout(context.Background(), 20 * time.Second)
-        defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
 
-        err := srv.Shutdown(ctx)
-        if err != nil {
-            shutdownError <- err
-        }
+		err := srv.Shutdown(ctx)
+		if err != nil {
+			shutdownError <- err
+		}
 
-        app.logger.PrintInfo("completing background tasks", map[string]string {
-            "addr": srv.Addr,
-        })
+		app.logger.PrintInfo("completing background tasks", map[string]string{
+			"addr": srv.Addr,
+		})
 
-        app.wg.Wait()
-        shutdownError <- nil
-    }()
+		app.wg.Wait()
+		shutdownError <- nil
+	}()
 
 	app.logger.PrintInfo("starting server", map[string]string{
 		"addr": srv.Addr,
 		"env":  app.config.env,
 	})
 
-    err := srv.ListenAndServe()
-    if !errors.Is(err, http.ErrServerClosed) {
-        return err
-    }
+	err := srv.ListenAndServe()
+	if !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
 
-    err = <-shutdownError
-    if err != nil {
-        return err
-    }
+	err = <-shutdownError
+	if err != nil {
+		return err
+	}
 
-    app.logger.PrintInfo("stopped server", map[string]string {
-        "addr": srv.Addr,
-    })
-    
-    return nil
+	app.logger.PrintInfo("stopped server", map[string]string{
+		"addr": srv.Addr,
+	})
+
+	return nil
 }
