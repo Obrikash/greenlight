@@ -3,8 +3,10 @@ package main
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/obrikash/greenlight/internal/data"
 	"github.com/obrikash/greenlight/internal/validator"
 )
@@ -48,18 +50,27 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		return
 	}
 
-	if !match {
+    if !match {
 		app.invalidCredentialsResponse(w, r)
 		return
 	}
 
-	token, err := app.models.Tokens.New(user.ID, 24*time.Hour, data.ScopeAuthentication)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-		return
-	}
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+        "sub": strconv.FormatInt(user.ID, 10),
+        "iss": "github.com/obrikash/greenlight",
+        "iat": time.Now().Unix(),
+        "nbf": time.Now().Unix(),
+        "aud": []string{"github.com/obrikash/greenlight"},
+        "exp": time.Now().Add(24 * time.Hour).Unix(),
+    })
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"authentication_token:": token}, nil)
+    signedToken, err := token.SignedString([]byte(app.config.jwt.secret))
+    if err != nil {
+        app.serverErrorResponse(w, r, err)
+        return
+    }
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"authentication_token:": signedToken}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return

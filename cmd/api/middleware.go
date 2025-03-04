@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/obrikash/greenlight/internal/data"
 	"github.com/obrikash/greenlight/internal/validator"
 	"golang.org/x/time/rate"
@@ -103,14 +104,20 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		token := headerParts[1]
+		tokenString := headerParts[1]
 
-		v := validator.New()
+        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error ) {
+            if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+                return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+            }
 
-		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
-			app.invalidAuthenticationTokenResponse(w, r)
-			return
-		}
+            return []byte(app.config.jwt.secret), nil
+        })
+        if err != nil {
+            app.badRequestResponse(w, r, err)
+            return
+        }
+
 
 		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
 		if err != nil {
