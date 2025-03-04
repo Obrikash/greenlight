@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/obrikash/greenlight/internal/data"
-	"github.com/obrikash/greenlight/internal/validator"
 	"golang.org/x/time/rate"
 )
 
@@ -106,30 +106,57 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 		tokenString := headerParts[1]
 
-        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error ) {
-            if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-                return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-            }
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
 
-            return []byte(app.config.jwt.secret), nil
-        })
+			return []byte(app.config.jwt.secret), nil
+		})
+		if err != nil {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if ok {
+			now := time.Now()
+
+			exp := claims["exp"].(float64)
+			expTime := time.Unix(int64(exp), 0)
+
+			nbf := claims["nbf"].(float64)
+			nbfTime := time.Unix(int64(nbf), 0)
+			if now.After(expTime) || now.Before(nbfTime) {
+				app.invalidAuthenticationTokenResponse(w, r)
+				return
+			}
+		} else {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+        if claims["iss"].(string) != "github.com/obrikash/greenlight" {
+            app.invalidAuthenticationTokenResponse(w,r)
+            return
+        }
+        
+        userID, err := strconv.ParseInt(claims["sub"].(string), 10, 64)
         if err != nil {
-            app.badRequestResponse(w, r, err)
+            app.serverErrorResponse(w, r, err)
             return
         }
 
+        user, err := app.models.Users.Get(userID)
+        if err != nil {
+            switch {
+                case errors.Is(err, data.ErrRecordNotFound):
+                    app.invalidAuthenticationTokenResponse(w,r)
+                default:
+                    app.serverErrorResponse(w, r, err)
+            }
+            return
+        }
 
-		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
-		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrRecordNotFound):
-				app.invalidAuthenticationTokenResponse(w, r)
-			default:
-				app.serverErrorResponse(w, r, err)
-			}
-			return
-		}
-
+	
 		r = app.contextSetUser(r, user)
 
 		next.ServeHTTP(w, r)
